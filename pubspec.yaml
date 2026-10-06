@@ -1,0 +1,29 @@
+name: nativeflow
+description: >-
+  Native runtime layer for long-running, event-driven Flutter apps: one
+  OS-compliant background runtime, adapters for your own libraries,
+  recovery, persistent events, notifications, overlays and Live Activities.
+version: 0.1.0
+homepage: https://github.com/nativeflow/nativeflow
+
+environment:
+  sdk: ^3.13.2
+  flutter: '>=3.35.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: com.nativeflow
+        pluginClass: NativeFlowPlugin
+      ios:
+        pluginClass: NativeFlowPlugin
