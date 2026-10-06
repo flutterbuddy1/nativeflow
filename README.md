@@ -1,5 +1,5 @@
 <center>
-<img src="assets/logo.png" height="100" width="100">
+<img src="https://github.com/flutterbuddy1/nativeflow/blob/main/assets/logo.png?raw=true" height="100" width="100">
 
 # NativeFlow
 
@@ -15,7 +15,9 @@ driver, delivery, fleet, field-service, IoT, chat and voice-agent apps.
 **NativeFlow provides the runtime. Your libraries own the protocol. The OS
 owns background policy.**
 
-![alt text](assets/workflow.png)
+<center>
+<img src="https://github.com/flutterbuddy1/nativeflow/blob/main/assets/workflow.png?raw=true">
+</center>
 
 ## Features
 

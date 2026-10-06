@@ -1,3 +1,7 @@
+## 0.1.1
+
+* Add logo and workflow image to README.md
+
 ## 0.1.0
 
 * Initial NativeFlow runtime: Dart API (`NativeFlow`, adapters, sessions,
