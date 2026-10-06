@@ -172,6 +172,10 @@ object RuntimeSupervisor {
         }
     }
 
+    private fun requirementsOf(config: Map<*, *>): Set<String> =
+        ((config["requirements"] as Map<*, *>?)?.get("capabilities") as List<*>?)
+            ?.filterIsInstance<String>()?.toSet() ?: emptySet()
+
     // ------------------------------------------------------ service callbacks
 
     internal fun onServiceCommand(s: RuntimeService, intent: Intent?): Int {

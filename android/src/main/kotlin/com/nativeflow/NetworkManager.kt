@@ -24,8 +24,13 @@ internal class NetworkManager(
         private set
 
     private val callback = object : ConnectivityManager.NetworkCallback() {
-        override fun onCapabilitiesChanged(network: Network, caps: NetworkCapabilities) = update(describe(caps))
-        override fun onLost(network: Network) = update(OFFLINE)
+        override fun onCapabilitiesChanged(network: Network, caps: NetworkCapabilities) {
+            update(describe(caps))
+        }
+
+        override fun onLost(network: Network) {
+            update(OFFLINE)
+        }
     }
 
     init {
