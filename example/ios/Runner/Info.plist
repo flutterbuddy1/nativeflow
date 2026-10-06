@@ -66,5 +66,21 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<!-- NativeFlow: only declare what your app legitimately uses. -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+		<string>fetch</string>
+		<string>processing</string>
+	</array>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>$(PRODUCT_BUNDLE_IDENTIFIER).nativeflow.refresh</string>
+		<string>$(PRODUCT_BUNDLE_IDENTIFIER).nativeflow.processing</string>
+	</array>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Your location is shared with riders while you are online.</string>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
 </dict>
 </plist>

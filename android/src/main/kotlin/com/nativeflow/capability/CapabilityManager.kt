@@ -70,7 +70,8 @@ class CapabilityManager(private val context: Context) {
             // Android 15 forbids starting several FGS types from BOOT_COMPLETED,
             // and force-stopped apps never receive it.
             if (declared(Manifest.permission.RECEIVE_BOOT_COMPLETED)) Status.PARTIAL else Status.UNAVAILABLE
-        else -> Status.UNAVAILABLE // liveActivity, widget, backgroundProcessing
+        "backgroundProcessing" -> Status.PARTIAL // JobScheduler: the OS decides when
+        else -> Status.UNAVAILABLE // liveActivity, widget
     }
 
     private fun runtimePermission(permissions: List<String>, serviceType: Int): String = when {

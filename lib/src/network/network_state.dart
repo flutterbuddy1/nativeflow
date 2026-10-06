@@ -1,6 +1,25 @@
 import 'package:flutter/foundation.dart';
 
-enum NetworkType { none, wifi, cellular, ethernet, vpn, other }
+/// Transport of the default network.
+enum NetworkType {
+  /// No network.
+  none,
+
+  /// Wi-Fi.
+  wifi,
+
+  /// Cellular data.
+  cellular,
+
+  /// Wired Ethernet.
+  ethernet,
+
+  /// A VPN.
+  vpn,
+
+  /// Any other or unrecognized transport.
+  other,
+}
 
 /// Connectivity as reported by the OS (ConnectivityManager / NWPathMonitor).
 ///
@@ -9,18 +28,26 @@ enum NetworkType { none, wifi, cellular, ethernet, vpn, other }
 /// reconnect and health checks for its protocol.
 @immutable
 class NetworkState {
+  /// Creates a network state.
   const NetworkState({
     required this.connected,
     this.type = NetworkType.none,
     this.metered = false,
   });
 
+  /// Whether the OS considers the default network usable.
   final bool connected;
+
+  /// Transport of the default network.
   final NetworkType type;
+
+  /// Whether the network is metered.
   final bool metered;
 
+  /// State before the native runtime has reported anything.
   static const unknown = NetworkState(connected: false);
 
+  /// Decodes a native network map; `null` gives [unknown].
   factory NetworkState.fromMap(Map<Object?, Object?>? map) {
     if (map == null) return unknown;
     return NetworkState(

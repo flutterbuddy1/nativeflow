@@ -4,6 +4,7 @@ import '../core/runtime_requirement.dart';
 import '../recovery/recovery_policy.dart';
 import 'adapter_context.dart';
 
+/// A lifecycle callback for a callback-based [RuntimeAdapter].
 typedef AdapterCallback = FutureOr<void> Function(AdapterContext context);
 
 /// Your workload, plugged into the NativeFlow runtime.
@@ -21,6 +22,8 @@ typedef AdapterCallback = FutureOr<void> Function(AdapterContext context);
 ///
 /// or subclass and override the lifecycle methods.
 class RuntimeAdapter {
+  /// Creates an adapter from lifecycle callbacks. Omitted callbacks do
+  /// nothing, except `recover`, which defaults to stop then start.
   RuntimeAdapter({
     required this.id,
     this.requirements = RuntimeRequirements.none,
@@ -35,6 +38,9 @@ class RuntimeAdapter {
   /// Unique, stable id (`[A-Za-z0-9_.:-]{1,64}`). Used to route events and
   /// to persist runtime state across process death.
   final String id;
+
+  /// What this adapter needs from the runtime. Merged with the requirements
+  /// of all other attached adapters.
   final RuntimeRequirements requirements;
 
   /// Overrides `NativeFlowConfig.recoveryPolicy` for this adapter.
@@ -56,7 +62,12 @@ class RuntimeAdapter {
   Future<void> resume(AdapterContext context) async => _resume?.call(context);
 
   /// Re-establish work after a failure, process recreation or engine
-  /// hand-off. See [AdapterContext.recoveryReason]. Defaults to [start].
-  Future<void> recover(AdapterContext context) async =>
-      _recover != null ? _recover(context) : start(context);
+  /// hand-off. See [AdapterContext.recoveryReason]. Defaults to [stop]
+  /// (release whatever is left of the broken connection) then [start], so
+  /// [stop] should be idempotent.
+  Future<void> recover(AdapterContext context) async {
+    if (_recover != null) return _recover(context);
+    await stop(context);
+    await start(context);
+  }
 }

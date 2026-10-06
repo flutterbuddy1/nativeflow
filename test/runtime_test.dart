@@ -83,6 +83,16 @@ void main() {
     );
   });
 
+  test('a repeated initialize without config keeps the config', () async {
+    await init();
+    runtime.logger.verbosity = LogVerbosity.verbose;
+    await runtime.initialize();
+    expect(runtime.config.recoveryPolicy, _fast);
+    expect(runtime.logger.verbosity, LogVerbosity.verbose);
+    await runtime.initialize(config: const NativeFlowConfig());
+    expect(runtime.logger.verbosity, LogVerbosity.errors);
+  });
+
   test('initialize applies snapshot and is idempotent', () async {
     await init({
       'state': 'running',
@@ -233,6 +243,28 @@ void main() {
     await runtime.attach(a);
     expect(a.log, ['recover:runtimeRestored']);
   });
+
+  test(
+    're-attaching to a running runtime never shrinks native requirements',
+    () async {
+      await init({
+        ..._online,
+        'state': 'running',
+        'capabilities': ['location', 'network'],
+      });
+      await runtime.attach(RuntimeAdapter(id: 'demo'));
+      expect(platform.lastArgs(NativeMethod.setRequirements), {
+        'requirements': {
+          'capabilities': ['location', 'network'],
+        },
+      });
+      // An explicit detach is allowed to shrink.
+      await runtime.detach('demo');
+      expect(platform.lastArgs(NativeMethod.setRequirements), {
+        'requirements': {'capabilities': <String>[]},
+      });
+    },
+  );
 
   test('attach rejects duplicate and invalid ids; failed requirement push rolls back', () async {
     await init();

@@ -33,6 +33,10 @@ internal object Json {
     }
 }
 
+/** org.json's optString() returns the string "null" for JSON null; this doesn't. */
+internal fun JSONObject.str(key: String): String? =
+    if (isNull(key)) null else optString(key).ifEmpty { null }
+
 /** Native logging gated by the Dart-side LogVerbosity index. */
 internal object NFLog {
     private const val TAG = "NativeFlow"

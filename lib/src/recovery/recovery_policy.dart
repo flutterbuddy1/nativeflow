@@ -10,6 +10,8 @@ import 'package:flutter/foundation.dart';
 /// so a fleet of devices does not reconnect in lockstep.
 @immutable
 class RecoveryPolicy {
+  /// Creates a policy. [multiplier] must be at least 1 and [jitter] in
+  /// `[0, 1)`.
   const RecoveryPolicy({
     this.maxAttempts = 10,
     this.initialDelay = const Duration(seconds: 1),
@@ -23,9 +25,17 @@ class RecoveryPolicy {
 
   /// `null` retries forever (still with backoff).
   final int? maxAttempts;
+
+  /// Delay before the first retry.
   final Duration initialDelay;
+
+  /// Upper bound for the delay before jitter is applied.
   final Duration maxDelay;
+
+  /// Factor applied to the delay after each failed attempt.
   final double multiplier;
+
+  /// Random spread as a fraction of the delay (0.2 means ±20%).
   final double jitter;
 
   /// Hold retries while the device is offline and retry immediately when
@@ -35,9 +45,12 @@ class RecoveryPolicy {
   /// Never retry.
   static const none = RecoveryPolicy(maxAttempts: 0);
 
+  /// Whether failed attempt number [attempt] (1-based) may be retried.
   bool allowsAttempt(int attempt) =>
       maxAttempts == null || attempt <= maxAttempts!;
 
+  /// Delay before retrying after failed attempt [attempt] (1-based). Pass
+  /// [random] for deterministic jitter in tests.
   Duration delayFor(int attempt, [Random? random]) {
     assert(attempt >= 1);
     final base = initialDelay.inMicroseconds * pow(multiplier, attempt - 1);

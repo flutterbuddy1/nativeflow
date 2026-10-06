@@ -26,24 +26,34 @@ import 'validation.dart';
 /// Process-wide settings passed to `NativeFlow.initialize`.
 @immutable
 class NativeFlowConfig {
+  /// Creates a configuration.
   const NativeFlowConfig({
     this.logVerbosity = LogVerbosity.errors,
     this.recoveryPolicy = const RecoveryPolicy(),
   });
 
+  /// How much NativeFlow logs, in Dart and in the native runtime.
   final LogVerbosity logVerbosity;
 
   /// Default for adapters that do not set their own policy.
   final RecoveryPolicy recoveryPolicy;
 }
 
-/// iOS BGTaskScheduler task kinds. `refresh` is short (~30 s);
-/// `processing` is longer but typically runs while charging and idle.
-enum BackgroundTaskKind { refresh, processing }
+/// Kind of OS-scheduled background task requested with
+/// `NativeFlow.scheduleBackgroundTask`. The OS decides when it runs.
+enum BackgroundTaskKind {
+  /// A short task (on iOS a BGAppRefreshTask, about 30 s).
+  refresh,
+
+  /// A longer task the OS typically runs while the device is idle and
+  /// charging (on iOS a BGProcessingTask).
+  processing,
+}
 
 /// Options for `NativeFlow.start`.
 @immutable
 class RuntimeOptions {
+  /// Creates start options.
   const RuntimeOptions({
     this.notification = const ForegroundNotification(),
     this.persistent = true,
@@ -62,6 +72,7 @@ class RuntimeOptions {
   /// records the user's explicit intent; it is cleared by [NativeFlow.stop].
   final bool restoreOnBoot;
 
+  /// Serializes these options for the platform channel.
   Map<String, Object?> toMap() => {
     'notification': notification.toMap(),
     'persistent': persistent,
@@ -71,6 +82,8 @@ class RuntimeOptions {
 
 /// The engine behind the `NativeFlow` facade. One per Flutter engine.
 class NativeFlowRuntime implements AdapterHost {
+  /// Creates a runtime that talks to the native layer through [platform].
+  /// [logger] defaults to a new [NativeFlowLogger].
   NativeFlowRuntime(this.platform, {NativeFlowLogger? logger, this._random})
     : logger = logger ?? NativeFlowLogger() {
     notifications = NativeFlowNotifications(this);
@@ -79,15 +92,25 @@ class NativeFlowRuntime implements AdapterHost {
     permissions = NativeFlowPermissions(this);
   }
 
+  /// Transport to the native runtime.
   final NativeFlowPlatform platform;
   @override
   final NativeFlowLogger logger;
   final Random? _random;
+
+  /// Delivers runtime events to listeners in this engine.
   final bus = RuntimeEventBus();
 
+  /// Native notifications.
   late final NativeFlowNotifications notifications;
+
+  /// Floating overlay window (Android only).
   late final NativeFlowOverlay overlay;
+
+  /// Live Activities and widget refresh (iOS only).
   late final NativeFlowActivities activities;
+
+  /// Permission status and request flows.
   late final NativeFlowPermissions permissions;
 
   final _sessions = <String, RuntimeSession>{};
@@ -111,29 +134,52 @@ class NativeFlowRuntime implements AdapterHost {
 
   @override
   RuntimeState get state => _state;
+
+  /// Emits whenever [state] changes.
   Stream<RuntimeState> get states => _stateController.stream;
   @override
   NetworkState get network => _network;
+
+  /// Emits whenever [network] changes.
   Stream<NetworkState> get networkChanges => _networkController.stream;
+
+  /// Sessions of all attached adapters, in attach order.
   List<RuntimeSession> get sessions => List.unmodifiable(_sessions.values);
+
+  /// Whether [initialize] has completed successfully.
   bool get isInitialized => _initialized;
 
   /// True inside the Android background engine NativeFlow spawned to run
   /// adapters while no UI is attached.
   bool get isBackgroundEngine => _isBackgroundEngine;
 
+  /// Union of the requirements of all attached adapters; this is what the
+  /// native runtime is configured with.
   RuntimeRequirements get requirements => RuntimeRequirements.merge(
     _sessions.values.map((s) => s.adapter.requirements),
   );
 
+  /// Requirements the native runtime already had when this engine joined
+  /// it. While an engine re-attaches adapters one by one (process restart,
+  /// background engine, UI returning), requirement updates are merged with
+  /// these so the running service never transiently loses a capability
+  /// (e.g. flapping from `location` to `dataSync`). Cleared by an explicit
+  /// [start] or [detach].
+  RuntimeRequirements _inherited = RuntimeRequirements.none;
+
   // ---------------------------------------------------------------- lifecycle
 
-  Future<void> initialize({
-    NativeFlowConfig config = const NativeFlowConfig(),
-    int? backgroundHandle,
-  }) {
-    _config = config;
-    logger.verbosity = config.logVerbosity;
+  /// Subscribes to native events, applies the native state snapshot and
+  /// delivers pending persisted events. See `NativeFlow.initialize`.
+  ///
+  /// [backgroundHandle] is the raw callback handle of the background
+  /// entrypoint. Concurrent calls share one initialization; a failed one can
+  /// be retried. A later call without [config] keeps the current one.
+  Future<void> initialize({NativeFlowConfig? config, int? backgroundHandle}) {
+    if (config != null) {
+      _config = config;
+      logger.verbosity = config.logVerbosity;
+    }
     return _initializing ??= () async {
       try {
         await _initialize(backgroundHandle);
@@ -173,6 +219,7 @@ class NativeFlowRuntime implements AdapterHost {
     });
   }
 
+  /// The configuration passed to the last [initialize] call.
   NativeFlowConfig get config => _config;
 
   void _applySnapshot(Map<Object?, Object?> s) {
@@ -180,6 +227,14 @@ class NativeFlowRuntime implements AdapterHost {
     _setNetwork(NetworkState.fromMap(s['network'] as Map<Object?, Object?>?));
     _isBackgroundEngine = s['backgroundEngine'] == true;
     _lastDelivered = (s['lastAck'] as num?)?.toInt() ?? 0;
+    if (_state.isActive) {
+      _inherited = RuntimeRequirements(
+        capabilities: {
+          for (final name in (s['capabilities'] as List<Object?>?) ?? const [])
+            ...RuntimeCapability.values.where((c) => c.name == name),
+        },
+      );
+    }
   }
 
   Future<void> _drainPending() async {
@@ -197,6 +252,8 @@ class NativeFlowRuntime implements AdapterHost {
     if (buffered.isNotEmpty) await _deliver(buffered);
   }
 
+  /// Starts the native runtime with [requirements] and [options], then starts
+  /// (or resumes) attached adapters. See `NativeFlow.start`.
   Future<void> start([RuntimeOptions options = const RuntimeOptions()]) =>
       _serial(() async {
         _ensureInitialized();
@@ -206,6 +263,7 @@ class NativeFlowRuntime implements AdapterHost {
         });
         _setState(RuntimeState.parse(reported ?? RuntimeState.running.name));
         _startedHere = true;
+        _inherited = RuntimeRequirements.none;
         for (final s in _sessions.values) {
           switch (s.state) {
             case SessionState.idle ||
@@ -219,6 +277,8 @@ class NativeFlowRuntime implements AdapterHost {
         }
       });
 
+  /// Stops adapters in reverse attach order, then the native runtime. See
+  /// `NativeFlow.stop`.
   Future<void> stop() => _serial(() async {
     _ensureInitialized();
     await _stopSessions();
@@ -227,6 +287,10 @@ class NativeFlowRuntime implements AdapterHost {
     _startedHere = false;
   });
 
+  /// Attaches [adapter] and returns its session. See `NativeFlow.attach`.
+  ///
+  /// Throws [NativeFlowException] with `invalidArgument` for a malformed id or
+  /// `duplicateAdapter` if the id is already attached.
   Future<RuntimeSession> attach(RuntimeAdapter adapter) => _serial(() async {
     _ensureInitialized();
     validateId(adapter.id, 'adapter id');
@@ -259,6 +323,8 @@ class NativeFlowRuntime implements AdapterHost {
     return session;
   });
 
+  /// Stops and removes the adapter with [adapterId]. Throws
+  /// [NativeFlowException] with `unknownAdapter` if it is not attached.
   Future<void> detach(String adapterId) => _serial(() async {
     _ensureInitialized();
     final session = _sessions[adapterId];
@@ -270,10 +336,13 @@ class NativeFlowRuntime implements AdapterHost {
     }
     await session.stop();
     _sessions.remove(adapterId);
+    _inherited = RuntimeRequirements.none;
     session.dispose();
     if (_state.isActive) await _pushRequirements();
   });
 
+  /// Queries the native runtime for the status of every [RuntimeCapability].
+  /// Unknown values are reported as [CapabilityStatus.unavailable].
   Future<CapabilityReport> capabilities() async {
     _ensureInitialized();
     final raw = await platform.invoke<Map<Object?, Object?>>(
@@ -285,14 +354,17 @@ class NativeFlowRuntime implements AdapterHost {
     };
   }
 
+  /// Shows [presentation] on the platform surface. See [RuntimePresentation].
   Future<void> present(RuntimePresentation presentation) {
     _ensureInitialized();
     return platform.invoke<void>(NativeMethod.present, presentation.toMap());
   }
 
-  /// iOS: asks BGTaskScheduler for a future background window. The OS
-  /// decides when (and whether) it runs; it arrives as a
-  /// [RuntimeEventType.backgroundTask] event.
+  /// Asks the OS for a future background window of [kind], no earlier than
+  /// [earliestIn] from now (iOS: BGTaskScheduler; Android: JobScheduler).
+  /// The OS decides when, and whether, it runs; it arrives as a
+  /// [RuntimeEventType.backgroundTask] event with `taskId` and `kind` in its
+  /// payload.
   Future<void> scheduleBackgroundTask({
     BackgroundTaskKind kind = BackgroundTaskKind.refresh,
     Duration earliestIn = const Duration(minutes: 15),
@@ -304,8 +376,9 @@ class NativeFlowRuntime implements AdapterHost {
     });
   }
 
-  /// Must be called for every [RuntimeEventType.backgroundTask] event,
-  /// before the OS deadline, with `payload['taskId']`.
+  /// Reports the background task [taskId] as finished. Must be called for
+  /// every [RuntimeEventType.backgroundTask] event, before the OS deadline,
+  /// with `payload['taskId']`.
   Future<void> completeBackgroundTask(String taskId, {bool success = true}) {
     _ensureInitialized();
     return platform.invoke<void>(NativeMethod.completeBackgroundTask, {
@@ -447,10 +520,11 @@ class NativeFlowRuntime implements AdapterHost {
     }
   }
 
-  Future<void> _pushRequirements() => platform.invoke<void>(
-    NativeMethod.setRequirements,
-    {'requirements': requirements.toMap()},
-  );
+  Future<void> _pushRequirements() =>
+      platform.invoke<void>(NativeMethod.setRequirements, {
+        'requirements': RuntimeRequirements.merge([requirements, _inherited])
+            .toMap(),
+      });
 
   void _setState(RuntimeState next) {
     if (next == _state) return;
@@ -471,6 +545,8 @@ class NativeFlowRuntime implements AdapterHost {
     }
   }
 
+  /// Throws [NativeFlowException] with `notInitialized` unless [initialize]
+  /// has completed.
   void ensureInitialized() => _ensureInitialized();
 
   void _ensureInitialized() {
@@ -489,6 +565,8 @@ class NativeFlowRuntime implements AdapterHost {
     return result;
   }
 
+  /// Cancels the event subscription, disposes all sessions and closes the
+  /// state streams.
   @visibleForTesting
   Future<void> dispose() async {
     await _eventSubscription?.cancel();

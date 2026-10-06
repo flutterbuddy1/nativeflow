@@ -14,11 +14,17 @@ enum RuntimeCapability {
 
   /// Network connectivity awareness.
   network,
+
+  /// Location updates while backgrounded.
   location,
+
+  /// Microphone capture while backgrounded.
   microphone,
 
   /// Audio playback while backgrounded.
   audio,
+
+  /// Posting notifications.
   notifications,
 
   /// Floating windows over other apps (Android only).
@@ -66,6 +72,7 @@ enum CapabilityStatus {
       this == CapabilityStatus.supported ||
       this == CapabilityStatus.partiallySupported;
 
+  /// Parses a wire name; unknown values map to [unavailable].
   static CapabilityStatus parse(Object? wire) => CapabilityStatus.values
       .firstWhere((s) => s.name == wire, orElse: () => unavailable);
 }

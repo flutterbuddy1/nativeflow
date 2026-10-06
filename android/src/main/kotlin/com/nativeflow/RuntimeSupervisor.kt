@@ -42,6 +42,10 @@ object RuntimeSupervisor {
     private var service: RuntimeService? = null
     private var pendingStart: ((error: Pair<String, String>?) -> Unit)? = null
     private var restoring: String? = null
+    private val pendingStop = mutableListOf<() -> Unit>()
+
+    /** Running JobScheduler tasks: taskId -> finish(taskId, success). */
+    private val tasks = mutableMapOf<String, (String, Boolean) -> Unit>()
 
     private val participants = linkedSetOf<NativeFlowPlugin>()
     private val sinks = linkedSetOf<EventChannel.EventSink>()
@@ -139,18 +143,22 @@ object RuntimeSupervisor {
         return null
     }
 
-    fun stop() {
+    /** [done] runs once the service is really gone, so Dart sees `stopped`. */
+    fun stop(done: () -> Unit) {
         store.active = false
         failStart("not_allowed" to "Stopped while starting")
         val s = service
         if (s != null) {
             state = State.STOPPING
-            s.leave() // onDestroy -> onServiceDestroyed -> STOPPED
+            pendingStop += done
+            s.leave() // onDestroy -> onServiceDestroyed -> STOPPED -> done
+            main.postDelayed({ if (pendingStop.remove(done)) done() }, START_TIMEOUT_MS)
         } else {
             setStopped()
+            done()
         }
         // The background engine only exists to run adapters for an active runtime.
-        main.post { if (!store.active) dropBackgroundEngine() }
+        main.post { if (!store.active && tasks.isEmpty()) dropBackgroundEngine() }
     }
 
     /** Foreground notification update (Android side of RuntimePresentation). */
@@ -199,6 +207,18 @@ object RuntimeSupervisor {
                 return Service.START_NOT_STICKY
             }
         }
+        if (!restart && !store.active) {
+            // A start/restore queued before stop() was processed: honour stop.
+            // startForegroundService still obliges us to enter the foreground.
+            try {
+                s.goForeground(
+                    notifications.foreground(store.notification),
+                    RequirementManager.serviceTypes(store.capabilities, capabilities.declaredServiceTypes),
+                )
+            } catch (_: Exception) { }
+            s.leave()
+            return Service.START_NOT_STICKY
+        }
         if (!tryForeground(s)) return Service.START_NOT_STICKY
         startNetwork()
         overlay.restore()
@@ -218,6 +238,7 @@ object RuntimeSupervisor {
 
     private fun tryForeground(s: RuntimeService): Boolean {
         val types = RequirementManager.serviceTypes(store.capabilities, capabilities.declaredServiceTypes)
+        NFLog.d("startForeground types=$types")
         return try {
             s.goForeground(notifications.foreground(store.notification), types)
             true
@@ -225,9 +246,14 @@ object RuntimeSupervisor {
             // ForegroundServiceStartNotAllowedException, SecurityException
             // (permission revoked), MissingForegroundServiceTypeException.
             NFLog.e("startForeground failed", e)
-            failStart("not_allowed" to (e.message ?: e.javaClass.simpleName))
             s.leave()
-            interrupt("foregroundNotAllowed")
+            if (pendingStart != null) {
+                // An explicit start() failed: report it, record no intent.
+                store.active = false
+                failStart("not_allowed" to (e.message ?: e.javaClass.simpleName))
+            } else {
+                interrupt("foregroundNotAllowed")
+            }
             false
         }
     }
@@ -244,6 +270,9 @@ object RuntimeSupervisor {
             State.INTERRUPTED -> Unit
             else -> interrupt("serviceDestroyed")
         }
+        val waiting = pendingStop.toList()
+        pendingStop.clear()
+        waiting.forEach { it() }
     }
 
     // --------------------------------------------------------------- recovery
@@ -316,16 +345,57 @@ object RuntimeSupervisor {
         scheduleBackgroundEngine()
     }
 
-    /** Spawn the background engine if the runtime is active and nobody runs adapters. */
-    private fun scheduleBackgroundEngine() = main.postDelayed({
-        if (participants.isEmpty() && state == State.RUNNING && store.backgroundHandle != 0L) {
+    /**
+     * Spawn the background engine if Dart work is pending (active runtime or
+     * a background task) and no engine participates.
+     */
+    private fun scheduleBackgroundEngine(delayMs: Long = SPAWN_DELAY_MS) = main.postDelayed({
+        val work = state == State.RUNNING || tasks.isNotEmpty()
+        if (participants.isEmpty() && work && store.backgroundHandle != 0L) {
             try {
                 NativeFlowEngine.spawn(context, store.backgroundHandle)
             } catch (e: Exception) {
                 NFLog.e("Background engine failed to start", e)
             }
         }
-    }, SPAWN_DELAY_MS)
+    }, delayMs)
+
+    // -------------------------------------------------------- background tasks
+
+    /**
+     * A JobScheduler window opened. The persisted event reaches Dart now (via
+     * an attached or freshly spawned engine) or on the next app launch.
+     * @return the task id if a Dart engine can handle it now; null finishes
+     *   the job immediately.
+     */
+    internal fun onBackgroundTask(taskId: String, kind: String, finish: (String, Boolean) -> Unit): String? {
+        emit("nativeflow.background.task", mapOf("taskId" to taskId, "kind" to kind), persist = true)
+        if (participants.isEmpty() && store.backgroundHandle == 0L) {
+            NFLog.w("Background task with no Dart engine and no backgroundEntrypoint; deferred to next launch")
+            return null
+        }
+        tasks[taskId] = finish
+        scheduleBackgroundEngine(delayMs = 0)
+        return taskId
+    }
+
+    fun scheduleBackgroundTask(kind: String, earliestSeconds: Long) =
+        BackgroundTaskService.schedule(context, kind, earliestSeconds)
+
+    fun completeBackgroundTask(taskId: String, success: Boolean) {
+        tasks.remove(taskId)?.invoke(taskId, success)
+        dropIdleEngine()
+    }
+
+    internal fun onBackgroundTaskExpired(taskId: String) {
+        if (tasks.remove(taskId) == null) return
+        emit("nativeflow.background.task", mapOf("taskId" to taskId, "expired" to true))
+        dropIdleEngine()
+    }
+
+    private fun dropIdleEngine() = main.post {
+        if (tasks.isEmpty() && !store.active) dropBackgroundEngine()
+    }
 
     private fun handOff(background: NativeFlowPlugin, then: () -> Unit) {
         var finished = false

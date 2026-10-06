@@ -5,10 +5,12 @@ import '../platform/native_flow_platform.dart';
 /// `NativeFlow.permissions`. Never requests anything on its own: call
 /// [request] (or [requestRequired]) from a user-visible flow.
 class NativeFlowPermissions {
+  /// Creates the controller. Use `NativeFlow.permissions` instead.
   NativeFlowPermissions(this._runtime);
 
   final NativeFlowRuntime _runtime;
 
+  /// Current status of [capability], without prompting the user.
   Future<CapabilityStatus> status(RuntimeCapability capability) =>
       _call(NativeMethod.permissionStatus, capability);
 

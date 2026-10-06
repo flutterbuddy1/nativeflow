@@ -9,10 +9,13 @@ import 'runtime_capability.dart';
 /// background configuration), never one per adapter.
 @immutable
 class RuntimeRequirements {
+  /// Creates requirements for [capabilities].
   const RuntimeRequirements({this.capabilities = const {}});
 
+  /// Capabilities the adapter needs.
   final Set<RuntimeCapability> capabilities;
 
+  /// No requirements.
   static const none = RuntimeRequirements();
 
   /// Union of all [requirements].
@@ -22,9 +25,11 @@ class RuntimeRequirements {
     );
   }
 
+  /// Whether [capability] is required.
   bool requires(RuntimeCapability capability) =>
       capabilities.contains(capability);
 
+  /// Serializes these requirements for the platform channel.
   Map<String, Object?> toMap() => {
     'capabilities': [for (final c in capabilities) c.name]..sort(),
   };

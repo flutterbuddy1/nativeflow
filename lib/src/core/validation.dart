@@ -44,18 +44,18 @@ void _checkJson(Object? value, int depth) {
   switch (value) {
     case null || bool() || String():
       return;
-    case num n:
+    case final num n:
       if (n is double && !n.isFinite) {
         throw const NativeFlowException(
           NativeFlowErrorCode.invalidArgument,
           'Event payload contains NaN or Infinity.',
         );
       }
-    case List l:
+    case final List<Object?> l:
       for (final v in l) {
         _checkJson(v, depth + 1);
       }
-    case Map m:
+    case final Map<Object?, Object?> m:
       for (final e in m.entries) {
         if (e.key is! String) {
           throw const NativeFlowException(

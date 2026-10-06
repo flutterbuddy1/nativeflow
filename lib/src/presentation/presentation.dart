@@ -15,6 +15,7 @@ import '../platform/native_flow_platform.dart';
 ///   enabled, otherwise posts a notification.
 @immutable
 class RuntimePresentation {
+  /// Creates a presentation.
   const RuntimePresentation({
     required this.title,
     this.body,
@@ -23,16 +24,22 @@ class RuntimePresentation {
     this.values = const {},
   });
 
+  /// Title text.
   final String title;
+
+  /// Body text.
   final String? body;
 
   /// 0..1, shown as a progress bar where supported.
   final double? progress;
+
+  /// Action buttons, where the surface supports them.
   final List<NotificationAction> actions;
 
   /// Extra string values for Live Activity content state (iOS).
   final Map<String, String> values;
 
+  /// Serializes this presentation for the platform channel.
   Map<String, Object?> toMap() => {
     'title': title,
     'body': body,
@@ -50,10 +57,12 @@ class RuntimePresentation {
 /// On Android, [start]/[update]/[end] throw
 /// [NativeFlowErrorCode.unavailable]; use `NativeFlow.present`.
 class NativeFlowActivities {
+  /// Creates the controller. Use `NativeFlow.activities` instead.
   NativeFlowActivities(this._runtime);
 
   final NativeFlowRuntime _runtime;
 
+  /// Status of [RuntimeCapability.liveActivity].
   Future<CapabilityStatus> status() =>
       _runtime.permissions.status(RuntimeCapability.liveActivity);
 
@@ -76,12 +85,14 @@ class NativeFlowActivities {
     return id;
   }
 
+  /// Replaces the content state of the Live Activity [activityId].
   Future<void> update(String activityId, Map<String, String> state) =>
       _invoke<void>(NativeMethod.activityUpdate, {
         'activityId': activityId,
         'state': state,
       });
 
+  /// Ends the Live Activity [activityId], optionally showing [finalState].
   Future<void> end(String activityId, {Map<String, String>? finalState}) =>
       _invoke<void>(NativeMethod.activityEnd, {
         'activityId': activityId,

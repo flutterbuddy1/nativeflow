@@ -71,14 +71,14 @@ internal class NotificationPresenter(private val context: Context) {
     /** The foreground-service notification, from persisted [spec]. */
     fun foreground(spec: JSONObject): Notification {
         ensureDefaultChannels()
-        val b = builder(spec.optString("channelId").ifEmpty { RUNTIME_CHANNEL })
-            .setContentTitle(spec.optString("title").ifEmpty { appLabel() })
+        val b = builder(spec.str("channelId") ?: RUNTIME_CHANNEL)
+            .setContentTitle(spec.str("title") ?: appLabel())
             .setOngoing(true)
             .setCategory(Notification.CATEGORY_SERVICE)
-            .setSmallIcon(smallIcon(spec.optString("smallIcon")))
+            .setSmallIcon(smallIcon(spec.str("smallIcon")))
             .setContentIntent(launchIntent(FOREGROUND_ID, null, null, null))
-        spec.optString("body").takeIf { it.isNotEmpty() }?.let(b::setContentText)
-        if (spec.has("progress") && !spec.isNull("progress")) {
+        spec.str("body")?.let(b::setContentText)
+        if (!spec.isNull("progress")) {
             b.setProgress(1000, (spec.getDouble("progress") * 1000).toInt(), false)
         }
         if (Build.VERSION.SDK_INT >= 31) b.setForegroundServiceBehavior(Notification.FOREGROUND_SERVICE_IMMEDIATE)

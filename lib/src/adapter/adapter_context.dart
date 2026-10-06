@@ -28,6 +28,7 @@ enum RecoveryReason {
 /// before the next start/recover and on stop, so adapters never leak
 /// listeners across restarts.
 class AdapterContext {
+  /// Creates the context for one session. Created by the runtime.
   AdapterContext(this._session, this._host);
 
   final RuntimeSession _session;
@@ -36,9 +37,16 @@ class AdapterContext {
 
   RecoveryReason? _reason;
 
+  /// Id of the adapter this context belongs to.
   String get adapterId => _session.id;
+
+  /// Current state of the native runtime.
   RuntimeState get runtimeState => _host.state;
+
+  /// Last connectivity reported by the OS.
   NetworkState get network => _host.network;
+
+  /// The NativeFlow logger.
   NativeFlowLogger get logger => _host.logger;
 
   /// Failed attempts since the last successful start (0 on a clean start).
@@ -47,9 +55,11 @@ class AdapterContext {
   /// Set while [RuntimeAdapter.recover] runs; `null` during start.
   RecoveryReason? get recoveryReason => _reason;
 
+  /// Listens to system events of [type] until the next restart or stop.
   void on(RuntimeEventType type, void Function(RuntimeEvent event) handler) =>
       _subscriptions.add(_host.events(type).listen(handler));
 
+  /// Listens to events with wire [name] until the next restart or stop.
   void onNamed(String name, void Function(RuntimeEvent event) handler) =>
       _subscriptions.add(_host.named(name).listen(handler));
 
@@ -74,12 +84,14 @@ class AdapterContext {
   void reportFailure(Object error, [StackTrace? stackTrace]) =>
       _session.reportFailure(error, stackTrace);
 
+  /// Cancels listeners and records [reason] before a start or recovery.
   @internal
   void prepare(RecoveryReason? reason) {
     clearSubscriptions();
     _reason = reason;
   }
 
+  /// Cancels every listener registered through [on] and [onNamed].
   @internal
   void clearSubscriptions() {
     for (final s in _subscriptions) {
@@ -91,16 +103,29 @@ class AdapterContext {
 
 /// The slice of the runtime adapters and sessions depend on.
 abstract interface class AdapterHost {
+  /// Current state of the native runtime.
   RuntimeState get state;
+
+  /// Last connectivity reported by the OS.
   NetworkState get network;
+
+  /// The NativeFlow logger.
   NativeFlowLogger get logger;
+
+  /// Events of system [type].
   Stream<RuntimeEvent> events(RuntimeEventType type);
+
+  /// Events with wire [name].
   Stream<RuntimeEvent> named(String name);
+
+  /// Publishes an application event; see [AdapterContext.emit].
   Future<int?> emit(
     String name, {
     String? adapterId,
     Map<String, Object?> payload,
     bool persist,
   });
+
+  /// Delivers [event] to local listeners without persisting it.
   void dispatchLocal(RuntimeEvent event);
 }

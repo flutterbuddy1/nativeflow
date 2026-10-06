@@ -78,3 +78,15 @@ class RecoveryManagerTest {
         assertEquals(listOf(now), RecoveryManager.recordRestart(old, now))
     }
 }
+
+class JsonTest {
+    @Test
+    fun `JSON null is not the string null`() {
+        // Regression: optString() returned "null" -> channel "null" -> FGS crash.
+        val o = Json.fromMap(mapOf("channelId" to null, "title" to "Online", "body" to ""))
+        assertEquals(null, o.str("channelId"))
+        assertEquals("Online", o.str("title"))
+        assertEquals(null, o.str("body"))
+        assertEquals(null, o.str("missing"))
+    }
+}

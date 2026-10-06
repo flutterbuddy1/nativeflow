@@ -1,9 +1,16 @@
 /// State of the single native runtime (Android foreground service / iOS
 /// background configuration). Owned by the native layer; Dart mirrors it.
 enum RuntimeState {
+  /// Not running; nothing will be restored.
   stopped,
+
+  /// Start requested; the native runtime is coming up.
   starting,
+
+  /// Running (on Android, the foreground service is active).
   running,
+
+  /// Stop requested; the native runtime is shutting down.
   stopping,
 
   /// The OS stopped the runtime without the app asking (service time limit,
@@ -14,9 +21,11 @@ enum RuntimeState {
   /// The runtime is being restored after process recreation or reboot.
   recovering;
 
+  /// Whether the runtime is running or being restored.
   bool get isActive =>
       this == RuntimeState.running || this == RuntimeState.recovering;
 
+  /// Parses a wire name; unknown values map to [stopped].
   static RuntimeState parse(Object? wire) => RuntimeState.values.firstWhere(
     (s) => s.name == wire,
     orElse: () => RuntimeState.stopped,
@@ -27,7 +36,11 @@ enum RuntimeState {
 enum SessionState {
   /// Attached but the runtime is not running.
   idle,
+
+  /// [RuntimeAdapter.start] is running.
   starting,
+
+  /// The adapter started or recovered successfully.
   running,
 
   /// Paused by the runtime (iOS background suspension, Android service
@@ -39,7 +52,11 @@ enum SessionState {
 
   /// Recovery is waiting for connectivity (policy `waitForNetwork`).
   waitingForNetwork,
+
+  /// [RuntimeAdapter.stop] is running.
   stopping,
+
+  /// Stopped by the runtime or by detach.
   stopped,
 
   /// Recovery gave up after the policy's maximum attempts.

@@ -80,7 +80,7 @@ class NativeFlowPlugin :
                 "start" -> s.start(call.arguments as Map<*, *>) { error ->
                     if (error == null) result.success(s.state.wire) else result.error(error.first, error.second, null)
                 }
-                "stop" -> { s.stop(); result.success(s.state.wire) }
+                "stop" -> s.stop { result.success(s.state.wire) }
                 "setRequirements" -> {
                     val error = s.setRequirements(call.arguments as Map<*, *>)
                     if (error == null) result.success(null) else result.error(error.first, error.second, null)
@@ -124,8 +124,18 @@ class NativeFlowPlugin :
                 }
                 "overlayState" -> result.success(s.overlay.state())
                 "present" -> { s.present(call.arguments as Map<*, *>); result.success(null) }
-                "activityStart", "activityUpdate", "activityEnd", "widgetUpdate",
-                "scheduleBackgroundTask", "completeBackgroundTask" ->
+                "scheduleBackgroundTask" -> {
+                    s.scheduleBackgroundTask(
+                        call.argument<String>("kind") ?: "refresh",
+                        call.argument<Number>("earliestSeconds")?.toLong() ?: 900,
+                    )
+                    result.success(null)
+                }
+                "completeBackgroundTask" -> {
+                    s.completeBackgroundTask(call.argument<String>("taskId")!!, call.argument<Boolean>("success") ?: true)
+                    result.success(null)
+                }
+                "activityStart", "activityUpdate", "activityEnd", "widgetUpdate" ->
                     result.error("unavailable", "${call.method} is iOS-only", null)
                 else -> result.notImplemented()
             }

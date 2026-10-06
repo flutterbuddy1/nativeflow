@@ -12,6 +12,9 @@ import 'runtime_state.dart';
 /// The live record of one attached [RuntimeAdapter]: its state, failure
 /// count and recovery schedule. All adapters share one native runtime.
 class RuntimeSession {
+  /// Creates a session for [adapter] hosted by [host]. Uses the adapter's
+  /// own [RuntimeAdapter.recoveryPolicy], or [defaultPolicy] if it has none.
+  /// Sessions are created by the runtime when an adapter is attached.
   RuntimeSession(
     this.adapter,
     AdapterHost host, {
@@ -22,11 +25,13 @@ class RuntimeSession {
     context = AdapterContext(this, host);
   }
 
+  /// The adapter this session runs.
   final RuntimeAdapter adapter;
   final AdapterHost _host;
   final RecoveryPolicy _policy;
   final Random? _random;
 
+  /// The context passed to every lifecycle call of [adapter].
   @internal
   late final AdapterContext context;
 
@@ -40,15 +45,27 @@ class RuntimeSession {
   /// cannot overwrite the state of the current one.
   int _generation = 0;
 
+  /// The adapter's id.
   String get id => adapter.id;
+
+  /// Current lifecycle state.
   SessionState get state => _state;
+
+  /// Emits whenever [state] changes.
   Stream<SessionState> get states => _states.stream;
+
+  /// Failed attempts since the last successful start or recovery.
   int get attempts => _attempts;
+
+  /// The most recent failure, or `null` after a successful start.
   Object? get lastError => _lastError;
 
+  /// Runs [RuntimeAdapter.start]; a failure schedules recovery.
   @internal
   Future<void> start() => _run(SessionState.starting, null, adapter.start);
 
+  /// Runs [RuntimeAdapter.recover] with [reason]. Does nothing while
+  /// stopping or stopped.
   @internal
   Future<void> recover(RecoveryReason reason) {
     if (_state == SessionState.stopping || _state == SessionState.stopped) {
@@ -57,6 +74,8 @@ class RuntimeSession {
     return _run(SessionState.recovering, reason, adapter.recover);
   }
 
+  /// Cancels pending retries and runs [RuntimeAdapter.stop]. Errors are
+  /// logged, not retried.
   @internal
   Future<void> stop() async {
     _cancelRetry();
@@ -83,6 +102,7 @@ class RuntimeSession {
     if (gen == _generation) _transition(SessionState.stopped);
   }
 
+  /// Runs [RuntimeAdapter.pause] if running. Errors are logged.
   @internal
   Future<void> pause() async {
     if (_state != SessionState.running) return;
@@ -97,6 +117,7 @@ class RuntimeSession {
     if (_state == SessionState.running) _transition(SessionState.paused);
   }
 
+  /// Runs [RuntimeAdapter.resume] if paused; a failure schedules recovery.
   @internal
   Future<void> resume() async {
     if (_state != SessionState.paused) return;
@@ -119,6 +140,8 @@ class RuntimeSession {
     }
   }
 
+  /// Records a failure reported by the adapter and schedules recovery.
+  /// Ignored unless running or paused.
   @internal
   void reportFailure(Object error, [StackTrace? stackTrace]) {
     if (_state == SessionState.running || _state == SessionState.paused) {
@@ -126,6 +149,7 @@ class RuntimeSession {
     }
   }
 
+  /// Cancels retries and subscriptions and closes [states].
   @internal
   void dispose() {
     _cancelRetry();

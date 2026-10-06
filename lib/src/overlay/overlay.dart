@@ -15,13 +15,25 @@ import '../platform/native_flow_platform.dart';
 /// while the app is closed), so they cannot depend on a Flutter engine.
 /// The node set is intentionally small and bounded.
 sealed class OverlayNode {
+  /// Base constructor for node subclasses.
   const OverlayNode();
+
+  /// Serializes this node for the native renderer.
   Map<String, Object?> toMap();
 }
 
-enum OverlayAxis { vertical, horizontal }
+/// Layout direction of an [OverlayCard].
+enum OverlayAxis {
+  /// Top to bottom.
+  vertical,
 
+  /// Start to end.
+  horizontal,
+}
+
+/// A rounded container laying out [children] along [axis].
 class OverlayCard extends OverlayNode {
+  /// Creates a card.
   const OverlayCard({
     this.children = const [],
     this.axis = OverlayAxis.vertical,
@@ -31,10 +43,19 @@ class OverlayCard extends OverlayNode {
     this.actionId,
   });
 
+  /// Child nodes, in order.
   final List<OverlayNode> children;
+
+  /// Direction in which [children] are laid out.
   final OverlayAxis axis;
+
+  /// Fill color; `null` uses the native default.
   final Color? background;
+
+  /// Corner radius in logical pixels.
   final double cornerRadius;
+
+  /// Inner padding in logical pixels.
   final double padding;
 
   /// Emitted as an overlay action when the card itself is tapped.
@@ -52,7 +73,9 @@ class OverlayCard extends OverlayNode {
   };
 }
 
+/// A text label.
 class OverlayText extends OverlayNode {
+  /// Creates a text label.
   const OverlayText(
     this.text, {
     this.size = 14,
@@ -61,10 +84,19 @@ class OverlayText extends OverlayNode {
     this.maxLines = 2,
   });
 
+  /// The text shown.
   final String text;
+
+  /// Font size in logical pixels.
   final double size;
+
+  /// Text color; `null` uses the native default.
   final Color? color;
+
+  /// Whether the text is bold.
   final bool bold;
+
+  /// Lines shown before the text is truncated.
   final int maxLines;
 
   @override
@@ -78,10 +110,23 @@ class OverlayText extends OverlayNode {
   };
 }
 
+/// A button. Taps arrive as [RuntimeEventType.overlayAction] events with
+/// `payload['actionId']`.
 class OverlayButton extends OverlayNode {
+  /// Creates a button reporting [actionId] when tapped.
   const OverlayButton({required this.actionId, required this.label});
 
+  /// Closes the overlay natively (works without Flutter) and emits
+  /// [RuntimeEventType.overlayClosed].
+  const OverlayButton.close({this.label = 'Close'}) : actionId = closeActionId;
+
+  /// Action id reserved for [OverlayButton.close].
+  static const closeActionId = 'close';
+
+  /// Id reported when tapped; 1-64 chars of `[A-Za-z0-9_.:-]`.
   final String actionId;
+
+  /// Button text.
   final String label;
 
   @override
@@ -94,10 +139,16 @@ class OverlayButton extends OverlayNode {
 
 /// PNG/JPEG bytes, at most 256 KB.
 class OverlayImage extends OverlayNode {
+  /// Creates an image from encoded [bytes].
   const OverlayImage(this.bytes, {this.width = 40, this.height = 40});
 
+  /// Encoded PNG or JPEG data.
   final Uint8List bytes;
+
+  /// Width in logical pixels.
   final double width;
+
+  /// Height in logical pixels.
   final double height;
 
   @override
@@ -114,8 +165,10 @@ class OverlayImage extends OverlayNode {
 
 /// [value] in 0..1, or `null` for indeterminate.
 class OverlayProgress extends OverlayNode {
+  /// Creates a progress indicator.
   const OverlayProgress({this.value});
 
+  /// Progress in 0..1, or `null` for indeterminate.
   final double? value;
 
   @override
@@ -126,6 +179,7 @@ class OverlayProgress extends OverlayNode {
 /// the top-left of the screen.
 @immutable
 class OverlayWindow {
+  /// Creates a window description.
   const OverlayWindow({
     required this.content,
     this.x = 0,
@@ -135,15 +189,27 @@ class OverlayWindow {
     this.draggable = true,
   });
 
+  /// Root node of the overlay content.
   final OverlayNode content;
+
+  /// Left edge in logical pixels.
   final double x;
+
+  /// Top edge in logical pixels.
   final double y;
 
-  /// `null` wraps content.
+  /// Width in logical pixels; `null` wraps content.
   final double? width;
+
+  /// Height in logical pixels; `null` wraps content.
   final double? height;
+
+  /// Whether the user can drag the window.
   final bool draggable;
 
+  /// Serializes this window. Throws [NativeFlowException] with
+  /// `invalidArgument` if the content exceeds [maxNodes] or contains an
+  /// invalid node.
   Map<String, Object?> toMap() {
     final content = this.content.toMap();
     if (_count(content) > maxNodes) {
@@ -162,6 +228,7 @@ class OverlayWindow {
     };
   }
 
+  /// Maximum number of nodes in one overlay tree.
   static const maxNodes = 32;
 
   static int _count(Map<String, Object?> node) =>
@@ -171,8 +238,10 @@ class OverlayWindow {
           .fold(0, (sum, c) => sum + _count(c));
 }
 
+/// Current position, size and visibility of the overlay window.
 @immutable
 class OverlayState {
+  /// Creates an overlay state.
   const OverlayState({
     required this.visible,
     this.x = 0,
@@ -181,9 +250,13 @@ class OverlayState {
     this.height = 0,
   });
 
+  /// Whether the overlay is shown.
   final bool visible;
+
+  /// Position and size in logical pixels; zero when not visible.
   final double x, y, width, height;
 
+  /// Decodes a native state map; `null` gives a hidden state.
   factory OverlayState.fromMap(Map<Object?, Object?>? m) => m == null
       ? const OverlayState(visible: false)
       : OverlayState(
@@ -202,10 +275,12 @@ class OverlayState {
 /// "Display over other apps" grant. On iOS every call throws
 /// [NativeFlowErrorCode.unavailable].
 class NativeFlowOverlay {
+  /// Creates the controller. Use `NativeFlow.overlay` instead.
   NativeFlowOverlay(this._runtime);
 
   final NativeFlowRuntime _runtime;
 
+  /// Status of [RuntimeCapability.overlay].
   Future<CapabilityStatus> status() =>
       _runtime.permissions.status(RuntimeCapability.overlay);
 
@@ -213,20 +288,28 @@ class NativeFlowOverlay {
   Future<CapabilityStatus> requestPermission() =>
       _runtime.permissions.request(RuntimeCapability.overlay);
 
+  /// Shows [window], replacing any overlay already shown. Throws
+  /// [NativeFlowException] with `invalidArgument` if it exceeds
+  /// [OverlayWindow.maxNodes] or contains an invalid node.
   Future<void> show(OverlayWindow window) =>
       _invoke(NativeMethod.overlayShow, window.toMap());
 
+  /// Replaces the content of the shown overlay with [content].
   Future<void> update(OverlayNode content) =>
       _invoke(NativeMethod.overlayUpdate, {'content': content.toMap()});
 
+  /// Removes the overlay window.
   Future<void> hide() => _invoke(NativeMethod.overlayHide, const {});
 
+  /// Moves the overlay window to ([x], [y]) in logical pixels.
   Future<void> move(double x, double y) =>
       _invoke(NativeMethod.overlayMove, {'x': x, 'y': y});
 
+  /// Resizes the overlay window; `null` wraps content.
   Future<void> resize(double? width, double? height) =>
       _invoke(NativeMethod.overlayResize, {'width': width, 'height': height});
 
+  /// Current position, size and visibility of the overlay window.
   Future<OverlayState> state() async {
     _runtime.ensureInitialized();
     return OverlayState.fromMap(
