@@ -3,7 +3,7 @@ description: >-
   OS-compliant background runtime for long-running Flutter apps. Keep your own
   socket/MQTT/location libraries; get recovery, persistent events and
   notifications.
-version: 0.1.2
+version: 0.1.3
 repository: https://github.com/flutterbuddy1/nativeflow
 issue_tracker: https://github.com/flutterbuddy1/nativeflow/issues
 documentation: https://github.com/flutterbuddy1/nativeflow/tree/main/doc
@@ -13,11 +13,6 @@ topics:
   - notifications
   - live-activities
   - runtime
-screenshots:
-  - description: 'NativeFlow logo'
-    path: assets/logo.png
-  - description: 'NativeFlow architecture and runtime workflow'
-    path: assets/workflow.png
 
 environment:
   sdk: ^3.13.2
