@@ -13,6 +13,11 @@ topics:
   - notifications
   - live-activities
   - runtime
+screenshots:
+  - description: 'NativeFlow logo'
+    path: assets/logo.png
+  - description: 'NativeFlow architecture and runtime workflow'
+    path: assets/workflow.png
 
 environment:
   sdk: ^3.13.2

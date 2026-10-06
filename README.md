@@ -1,23 +1,26 @@
-<center>
-<img src="https://github.com/flutterbuddy1/nativeflow/blob/main/assets/logo.png?raw=true" height="100" width="100">
+<p align="center">
+  <img src="assets/logo.png" width="120" alt="NativeFlow Logo" />
+</p>
 
-# NativeFlow
+<h1 align="center">NativeFlow</h1>
 
-[![pub package](https://img.shields.io/pub/v/nativeflow.svg)](https://pub.dev/packages/nativeflow)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+<p align="center">
+  <a href="https://pub.dev/packages/nativeflow"><img src="https://img.shields.io/pub/v/nativeflow.svg" alt="pub package" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT" /></a>
+</p>
 
-</center>
+<p align="center">
+  An OS-compliant native runtime for long-running, event-driven Flutter apps:<br />
+  driver, delivery, fleet, field-service, IoT, chat and voice-agent apps.
+</p>
 
+<p align="center">
+  <strong>NativeFlow provides the runtime. Your libraries own the protocol. The OS owns background policy.</strong>
+</p>
 
-An OS-compliant native runtime for long-running, event-driven Flutter apps:
-driver, delivery, fleet, field-service, IoT, chat and voice-agent apps.
-
-**NativeFlow provides the runtime. Your libraries own the protocol. The OS
-owns background policy.**
-
-<center>
-<img src="https://github.com/flutterbuddy1/nativeflow/blob/main/assets/workflow.png?raw=true">
-</center>
+<p align="center">
+  <img src="assets/workflow.png" alt="NativeFlow Architecture Workflow" width="100%" />
+</p>
 
 ## Features
 
