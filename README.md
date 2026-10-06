@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/logo.png" width="120" alt="NativeFlow Logo" />
+  <img src="https://github.com/flutterbuddy1/nativeflow/blob/main/assets/logo.png?raw=true" width="120" alt="NativeFlow Logo" />
 </p>
 
 <h1 align="center">NativeFlow</h1>
@@ -19,7 +19,7 @@
 </p>
 
 <p align="center">
-  <img src="assets/workflow.png" alt="NativeFlow Architecture Workflow" width="100%" />
+  <img src="https://github.com/flutterbuddy1/nativeflow/blob/main/assets/workflow.png?raw=true" alt="NativeFlow Architecture Workflow" width="100%" />
 </p>
 
 ## Features
