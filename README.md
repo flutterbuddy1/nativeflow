@@ -1,7 +1,13 @@
-![nativeflow](assets/logo.png)
+<center>
+<img src="assets/logo.png" height="100" width="100">
+
+# NativeFlow
 
 [![pub package](https://img.shields.io/pub/v/nativeflow.svg)](https://pub.dev/packages/nativeflow)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
+</center>
+
 
 An OS-compliant native runtime for long-running, event-driven Flutter apps:
 driver, delivery, fleet, field-service, IoT, chat and voice-agent apps.

@@ -12,17 +12,19 @@ analysis (needs a device run) · ⏭ deferred (why)
 | 4 | Android network/lifecycle events | 🟡 |
 | 5 | Recovery engine (Dart backoff + network-aware; native restore decisions, restart-loop guard) | ✅ Dart + Kotlin tests |
 | 6 | Event store (JSONL, ack, retry, retention, compaction, torn writes) | ✅ Kotlin + Swift tests |
-| 7 | Bridge: batching, snapshot sync, drain + dedupe + cumulative ack, engine hand-off | ✅ Dart tests · 🟡 hand-off on device |
-| 8 | Android notifications (channels, actions, deep links, heads-up, grouping) | 🟡 |
-| 9 | Android overlays (declarative native, drag, persistence, close) | 🟡 |
+| 7 | Bridge: batching, snapshot sync, drain + dedupe + cumulative ack, engine hand-off | ✅ Dart tests + UI close/reopen hand-off on emulator |
+| 8 | Android notifications (channels, actions, deep links, heads-up, grouping) | ✅ integration test on emulator |
+| 9 | Android overlays (declarative native, drag, persistence, close) | ✅ full lifecycle in integration test on emulator |
 | 10 | Full-screen via notifications for calls/alarms only | 🟡 |
 | 11 | Boot / package-replaced / sticky restore | ✅ decision tests · 🟡 device |
 | 12 | iOS runtime (capabilities, pause/resume, BGTaskScheduler, network) | ✅ XCTests · 🟡 background behaviour on device |
-| 13 | iOS Live Activities / widgets, `RuntimePresentation` | 🟡 (needs a widget extension target to run) |
+| 13 | iOS Live Activities / widgets, `RuntimePresentation` | ✅ simulator: activity rendered in Dynamic Island, `present` routed into it |
 | 14 | Permission system (`status`, `request`, `requestRequired`) | ✅ Dart tests |
-| 15 | Tests (Dart 38+1, Android JVM 15, iOS XCTest 14, integration 3 on Android emulator + iOS simulator) | ✅ |
-| 16 | Example app: driver runtime, WebSocket/Socket.IO/MQTT/location adapters, notifications, overlay, Live Activity, recovery log | ✅ builds Android + iOS |
-| 17 | Documentation | ✅ |
+| 15 | Tests (Dart 40, example 1, Android JVM 15, iOS XCTest 13, integration 10 per platform) | ✅ |
+| 16 | Example app: every public API, 5 adapters, Live Activity widget extension, socket.io test server | ✅ Android emulator + iOS simulator |
+| 17 | Documentation (13 guides + API docs) | ✅ |
+| 18 | Android background tasks (JobScheduler) | ✅ integration test on emulator |
+| 19 | Publishing: MIT license, pubspec metadata, privacy manifest, dry-run clean | ✅ |
 
 ## Next
 
