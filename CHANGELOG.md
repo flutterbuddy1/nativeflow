@@ -1,3 +1,7 @@
+## 0.1.2
+
+* Add logo and workflow image to README.md Fix
+
 ## 0.1.1
 
 * Add logo and workflow image to README.md
